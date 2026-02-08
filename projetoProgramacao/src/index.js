@@ -6,7 +6,15 @@ function alteracaoDeNome(aluno){
     return nome
 }
 
-function criarAluno(){
+function alteracaoDeTexto(aluno){
+    let textoUsado = aluno["role"] === "Admin" ? "Acesso Total" : "Indefenido"
+    textoUsado = aluno["role"] === "Editor" ? "Pode Editar" : textoUsado
+    textoUsado = aluno["role"] === "Default" ? "Acesso Limitado" : textoUsado
+    return textoUsado
+}
+
+
+function criarAluno(alunos){
     const nome = prompt("Insira o nome do Aluno : ")
     const numeroDeNotas = Number(prompt("Insira quantas notas tem : "))
     const notas = []
@@ -15,10 +23,12 @@ function criarAluno(){
         contador = nota <= 20 && nota >= 0 ? contador : contador-1
         notas.push(nota)
     }
+    let ultimoAluno = alunos[alunos. length - 1]
+    let idUltimoAluno = ultimoAluno["id"]
     const aluno = {
         name : nome,
         grades : notas,
-        id : 0,
+        id : (idUltimoAluno+1),
         role : ""
     }
     return aluno
@@ -29,28 +39,27 @@ function adicionarAluno(alunoNovo,aluno){
 }
 
 function alterarRoles(aluno){
-    let contador = 1
     let alunoSelecionado = 0
     for( const alunoNome of aluno){
         let nome = alteracaoDeNome(alunoNome)
-        console.log(contador + ") " + nome)
-        contador = contador +1
+        console.log(alunoNome["id"] + ") " + nome)
     }
+    const ultimoAluno = aluno[aluno. length - 1]
+    const idUltimoAluno = ultimoAluno["id"]
     do{
         alunoSelecionado = Number(prompt("Insira o aluno que pretende editar : "))
-        textoApresentado = alunoSelecionado>=1 && alunoSelecionado<contador ? ("Aluno Válido") : ("Inválido, Tente Novamente")
+        textoApresentado = alunoSelecionado>=1 && alunoSelecionado<=idUltimoAluno ? ("Aluno Válido") : ("Inválido, Tente Novamente")
         console.log(textoApresentado)
-    }while(alunoSelecionado>(contador-1) || alunoSelecionado<0)
-    contador = 1
+    }while(alunoSelecionado>idUltimoAluno || alunoSelecionado<0)
     for (const alunoCompleto of aluno){
         let nome = alteracaoDeNome(alunoCompleto)
-        if(alunoSelecionado===contador){
+        if(alunoSelecionado===alunoCompleto["id"]){
             do{
             console.log("1 - Admin \n2 - Editor \n3 - Default ")
             escolha = Number(prompt("Insira um número correspondente role de " + nome + " : "))
             textoApresentado = escolha < 4 && escolha > 0 ? ("Role Válido") : ("Role Inválido, Tente Novamente")
             console.log(textoApresentado)
-            }while(escolha>3)
+            }while(escolha>3 || escolha<1)
             switch(escolha){
                 case 1:
                     return alunoCompleto["role"] = "Admin"
@@ -61,34 +70,28 @@ function alterarRoles(aluno){
                 case 3: 
                     return alunoCompleto["role"] = "Default"
                     break
-                default : 
-
             }
-        }
-    contador = contador +1
-    
+        }  
     }
 }
 
 function notas(aluno){
-    let contador = 0
     const lista = []
     for (const alunoCompleto of aluno){
         let notaFinal = 0
         let quantidadeDeNotas = 0
         let media = 0
         let escolha = 0
-        let role = alunoCompleto["role"] === "" ? "Indefinido" : alunoCompleto["role"] 
+        let role = alteracaoDeTexto(alunoCompleto)
         let nome = alteracaoDeNome(alunoCompleto)
         for(const alunoNota of alunoCompleto["grades"] ){
             alunoNota <= 20 && alunoNota >= 0 ? notaFinal=notaFinal+alunoNota : quantidadeDeNotas=quantidadeDeNotas-1
             quantidadeDeNotas += 1
         }
-        contador += 1
         media = notaFinal === 0 ? (0) : notaFinal / quantidadeDeNotas
         media = media.toFixed(1)
         let status = media >= 10 ? ("Aprovado") : ("Reprovado")
-        lista.push(contador + ")  " + nome + " - Média : " + media + " -  Status : " + status + " - Role [" + role + "]")
+        lista.push((alunoCompleto["id"]) + ") " + nome + " - Média : " + media + " -  Status : " + status + " - Role [" + role + "]")
     }
     return lista
 }
@@ -104,37 +107,38 @@ function alunosModelo(){
     const aluno = [
     {
         name : "???",
-        id : 0,
+        id : 1,
         grades : [],
         role : ""
     },
     {
         name : "João",
-        id : 0,
+        id : 2,
         grades : [18.3,13.5,16.7,11.1,9.4,12.5],
         role : ""
     },
     {
         name : "Catarina",
-        id : 0,
+        id : 3,
         grades : [19.5,7.3,16.3,12.3],
         role : ""
     },
     {
         name : "Afonso",
-        id : 0,
+        id : 4,
         grades : [12.3,13.2,15,16.4,9.3],
         role : ""
     },
     {
         name : "",
-        id : 0,
+        id : 5,
         grades : [3.6,6.5,8.3,1.2,6.4,15.2,1.3],
         role : ""
     }
     ]
 return aluno
 }
+
 
 aluno = alunosModelo()
 let escolhaMenu = 0
@@ -143,7 +147,7 @@ do{
     escolhaMenu = Number(prompt("Insira a sua opção : "))
     switch(escolhaMenu){
         case 1:
-            alunoNovo = criarAluno()
+            alunoNovo = criarAluno(aluno)
             aluno = adicionarAluno(alunoNovo,aluno)
             break
         case 2:
