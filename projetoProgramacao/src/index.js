@@ -1,7 +1,8 @@
 const prompt = require("prompt-sync")();
 
 function alteracaoDeNome(aluno){
-    let nome = aluno["name"] === "???" ? ("Anónimo") : (aluno["name"])
+    let nome = aluno["name"] === undefined ? ("Sem Nome") : (aluno["name"])
+    nome = aluno["name"] === "???" ? ("Anónimo") : (nome)
     nome = nome === "" ? ("Sem Nome") : (nome)
     return nome
 }
@@ -118,7 +119,6 @@ function alunosModelo(){
         role : ""
     },
     {
-        name : "Catarina",
         id : 3,
         grades : [19.5,7.3,16.3,12.3],
         role : ""
