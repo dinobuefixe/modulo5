@@ -289,7 +289,7 @@ class Catalogo {
         if (!produto || !produto.sku) { 
             throw new Error("Produto inválido"); 
         } 
-        this.catalogo.set(produto.sku, produto); 
+        this.catalogo.set(produto["sku"],{Nome : produto.nome, } ); 
     }
 
 	getProduto(sku) {
@@ -328,13 +328,17 @@ class Catalogo {
 
 }
 
-const catalogo = new Catalogo()
+const catalogoVariavel = new Catalogo()
 
 for (const produtoUnico of produtos) { 
-    catalogo.adicionarProduto(produtoUnico); 
+    catalogoVariavel.adicionarProduto(produtoUnico); 
 }
 
+console.log(catalogoVariavel)
 
+for(const [key, value] of catalogoVariavel.catalogo){
+	console.log(key,value)
+}
 
 // 6) Crie a classe CarrinhoDeCompras
 // Responsabilidades:
