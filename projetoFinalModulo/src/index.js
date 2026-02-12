@@ -114,48 +114,48 @@ class Produto {
 }
 
 
-const produtos = [
-    new Produto({
-        sku: "ELE001",
-        nome: "Máquina de Lavar",
-        preco: 399.99,
-        fabricante: "Bosch",
-        categoria: "eletrodoméstico",
-        numeroMaximoParcelas: 12
-    }),
-    new Produto({
-        sku: "DEC010",
-        nome: "Candeeiro de Mesa",
-        preco: 29.90,
-        fabricante: "IKEA",
-        categoria: "decoração",
-        numeroMaximoParcelas: 6
-    }),
-    new Produto({
-        sku: "MAT200",
-        nome: "Saco de Cimento 25kg",
-        preco: 4.50,
-        fabricante: "Cimpor",
-        categoria: "materiais de construção",
-        numeroMaximoParcelas: 3
-    }),
-    new Produto({
-        sku: "VES050",
-        nome: "Camisola de Algodão",
-        preco: 14.99,
-        fabricante: "Zara",
-        categoria: "vestuário",
-        numeroMaximoParcelas: 4
-    }),
-    new Produto({
-        sku: "ALI300",
-        nome: "Arroz Agulha 1kg",
-        preco: 1.20,
-        fabricante: "Continente",
-        categoria: "alimentos",
-        numeroMaximoParcelas: 1
-    })
-];
+// const produtos = [
+//     new Produto({
+//         sku: "ELE001",
+//         nome: "Máquina de Lavar",
+//         preco: 399.99,
+//         fabricante: "Bosch",
+//         categoria: "eletrodoméstico",
+//         numeroMaximoParcelas: 12
+//     }),
+//     new Produto({
+//         sku: "DEC010",
+//         nome: "Candeeiro de Mesa",
+//         preco: 29.90,
+//         fabricante: "IKEA",
+//         categoria: "decoração",
+//         numeroMaximoParcelas: 6
+//     }),
+//     new Produto({
+//         sku: "MAT200",
+//         nome: "Saco de Cimento 25kg",
+//         preco: 4.50,
+//         fabricante: "Cimpor",
+//         categoria: "materiais de construção",
+//         numeroMaximoParcelas: 3
+//     }),
+//     new Produto({
+//         sku: "VES050",
+//         nome: "Camisola de Algodão",
+//         preco: 14.99,
+//         fabricante: "Zara",
+//         categoria: "vestuário",
+//         numeroMaximoParcelas: 4
+//     }),
+//     new Produto({
+//         sku: "ALI300",
+//         nome: "Arroz Agulha 1kg",
+//         preco: 1.20,
+//         fabricante: "Continente",
+//         categoria: "alimentos",
+//         numeroMaximoParcelas: 1
+//     })
+// ];
 
 // 2) Crie a classe Cliente
 // Requisitos:
@@ -268,7 +268,7 @@ class Estoque {
 	}
 }
 
-const estoque = new Estoque();
+const stockVariavel = new Estoque();
 
 // 5) Crie a classe Catalogo
 // Use Map para guardar { sku -> Produto }
@@ -289,7 +289,14 @@ class Catalogo {
         if (!produto || !produto.sku) { 
             throw new Error("Produto inválido"); 
         } 
-        this.catalogo.set(produto["sku"],{Nome : produto.nome, } ); 
+        this.catalogo.set(
+			produto.sku,{
+				nome : produto.nome, 
+				preco : produto.preco, 
+				fabricante : produto.fabricante, 
+				categoria : produto.categoria, 
+				numeroMaximoParcelas: produto.numeroMaximoParcelas
+			} ); 
     }
 
 	getProduto(sku) {
@@ -328,17 +335,17 @@ class Catalogo {
 
 }
 
-const catalogoVariavel = new Catalogo()
+// const catalogoVariavel = new Catalogo()
 
-for (const produtoUnico of produtos) { 
-    catalogoVariavel.adicionarProduto(produtoUnico); 
-}
+// for (const produtoUnico of produtos) { 
+//     catalogoVariavel.adicionarProduto(produtoUnico); 
+// }
 
-console.log(catalogoVariavel)
+// console.log(catalogoVariavel)
 
-for(const [key, value] of catalogoVariavel.catalogo){
-	console.log(key,value)
-}
+// for(const [key, value] of catalogoVariavel.catalogo){
+// 	console.log(key,value.nome)
+// }
 
 // 6) Crie a classe CarrinhoDeCompras
 // Responsabilidades:
@@ -424,6 +431,8 @@ class CarrinhoDeCompras {
     }
 }
 
+
+
 // ==========================================
 // PARTE 2 - Regras de preço (promoções)
 // ==========================================
@@ -478,17 +487,120 @@ class CarrinhoDeCompras {
 // - calcular({ cliente, itens, cupomCodigo }) => breakdown
 // Onde itens é o resultado de carrinho.listarItens()
 
-class MotorDePrecos {
-	constructor({ catalogo }) {
-		// TODO
-		throw new Error("TODO: implementar MotorDePrecos");
-	}
 
-	calcular({ cliente, itens, cupomCodigo }) {
-		// TODO
-		throw new Error("TODO: implementar calcular");
-	}
+let breakdown =  {
+	subtotal : 0,
+	descontos: [/*{ codigo, descricao, valor }*/],
+	totalDescontos : 0,
+	impostoPorCategoria: {/* [categoria]: valor */},
+	totalImpostos : 0,
+	frete: 0,
+	total : 0
 }
+
+function regra1(cliente) {
+    const desconto = cliente.tipo === "VIP" ? 5 : 0;
+    return desconto;
+}
+
+function regra2(cupom, frete, descontoAnterior) {
+    let desconto = cupom === "ETIC10" ? 10 : 0;
+
+    if (cupom === "FRETEGRATIS") {
+        frete = 0;
+    }
+
+    if (cupom === "SEM-VIP") {
+        descontoAnterior = 0;
+    }
+
+    return { desconto, frete, descontoAnterior };
+}
+
+function regra3(carrinhoDeCompras) {
+    let contador = 0;
+    let precoMaisBaixo = 100000;
+    const artigosGratis = [];
+    let nomeProdutoGratis = "";
+
+    for (const produto of carrinhoDeCompras) {
+        if (produto.categoria === "vestuário") {
+            if (produto.preco < precoMaisBaixo) {
+                precoMaisBaixo = produto.preco;
+                nomeProdutoGratis = produto.sku;
+            }
+            contador += 1;
+            if (contador % 3 === 0) {
+                artigosGratis.push(nomeProdutoGratis);
+                precoMaisBaixo = 100000;
+            }
+        }
+    }
+    return artigosGratis;
+}
+
+function regra4(precoTotal) {
+    const precoFinal = precoTotal >= 500 ? precoTotal - 30 : precoTotal;
+    return precoFinal;
+}
+
+function usarDescontos(preco,desconto){
+	precoFinal = preco*(desconto/100)
+}
+
+class MotorDePrecos {
+    constructor({ catalogo }) {
+        this.catalogo = catalogo;
+    }
+
+    calcular({ cliente, itens, cupomCodigo }) {
+        let frete = 20; // valor base
+        let desconto = regra1(cliente);
+        const r2 = regra2(cupomCodigo, frete, desconto);
+        frete = r2.frete;
+        desconto += r2.desconto;
+        desconto = r2.descontoAnterior; 
+		descricao += r2.descricao;  
+        // // calcular subtotal
+        // const subtotal = itens.reduce((total, item) => {
+        //     const produto = this.catalogo[item.sku];
+        //     return total + produto.preco * item.quantidade;
+        // }, 0);
+		let subtotal = 0
+		let categoriasTalao = {}; // objeto para contar categorias
+
+		for (const produto of itens) {
+
+			// 1. pegar o preço correto do catálogo
+			let preco = this.catalogo[produto.sku].preco * produto.quantidade;
+
+			subtotal += preco;
+
+			// 2. contar quantos itens existem por categoria
+			if (produto.categoria in categoriasTalao) {
+				categoriasTalao[produto.categoria] += 1;
+			} else {
+				categoriasTalao[produto.categoria] = 1;
+			}
+		}
+
+
+		descontoEmPercentagem = usarDescontos(total,desconto);
+        total = regra4(total);
+		total = total + frete - descontoEmPercentagem;
+
+
+		breakdown = {
+			"subototal" : subtotal,
+			"descontos" : [cupomCodigo,desconto],
+			"totalDescontos" : descontoEmPercentagem,
+			//"impostoPorCategoria" : {[categoria]}
+
+		}
+        return breakdown;
+    }
+}
+
 
 // ==========================================
 // PARTE 3 - Checkout / Pedido / Cupom
@@ -667,6 +779,11 @@ function seedCatalogoEEstoque() {
 	estoque.definirQuantidade("CIMENTO", 100);
 
 	return { catalogo, estoque };
+}
+const {catalogo,estoque} = seedCatalogoEEstoque()
+
+for(const [key, value] of catalogo.catalogo){
+	console.log(key,value.nome)
 }
 
 // ==========================================
