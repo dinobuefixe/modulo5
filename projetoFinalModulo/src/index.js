@@ -268,8 +268,6 @@ class Estoque {
 	}
 }
 
-const stockVariavel = new Estoque();
-
 // 5) Crie a classe Catalogo
 // Use Map para guardar { sku -> Produto }
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
@@ -333,7 +331,15 @@ class Catalogo {
         this.catalogo.set(sku, produto);
     }
 
+	buscar(id){
+		for(const [key] of this.catalogo){
+			if(id === key){
+				return key
+			}
+		}
+	}
 }
+
 
 // const catalogoVariavel = new Catalogo()
 
@@ -368,7 +374,7 @@ class CarrinhoDeCompras {
         // validar se o produto existe no catálogo
         const produto = this.catalogo.getProduto(sku);
         if (!produto) {
-            throw new Error(`Produto com SKU ${sku} não existe no catálogo`);
+            throw new Error(`Produto ${sku} não existe no catálogo`);
         }
 
         // validar estoque
@@ -426,7 +432,6 @@ class CarrinhoDeCompras {
         for (const item of this.itens.values()) {
             total += item.getTotal();
         }
-
         return total;
     }
 }
@@ -499,7 +504,7 @@ let breakdown =  {
 }
 
 function regra1(cliente) {
-    const desconto = cliente.tipo === "VIP" ? 5 : 0;
+    const desconto = cliente === "VIP" ? 5 : 0;
     return desconto;
 }
 
@@ -560,27 +565,19 @@ class MotorDePrecos {
         frete = r2.frete;
         desconto += r2.desconto;
         desconto = r2.descontoAnterior; 
-		descricao += r2.descricao;  
-        // // calcular subtotal
-        // const subtotal = itens.reduce((total, item) => {
-        //     const produto = this.catalogo[item.sku];
-        //     return total + produto.preco * item.quantidade;
-        // }, 0);
 		let subtotal = 0
-		let categoriasTalao = {}; // objeto para contar categorias
-
+		let categoriasTalao = {}; 
+		let impostos = 0;
 		for (const produto of itens) {
 
-			// 1. pegar o preço correto do catálogo
 			let preco = this.catalogo[produto.sku].preco * produto.quantidade;
 
 			subtotal += preco;
-
-			// 2. contar quantos itens existem por categoria
+			impostos += IVA_POR_CATEGORIA[produto.categoria] 
 			if (produto.categoria in categoriasTalao) {
-				categoriasTalao[produto.categoria] += 1;
+				categoriasTalao[produto.categoria] += IVA_POR_CATEGORIA[produto.categoria];
 			} else {
-				categoriasTalao[produto.categoria] = 1;
+				categoriasTalao[produto.categoria] = IVA_POR_CATEGORIA[produto.categoria];
 			}
 		}
 
@@ -594,8 +591,10 @@ class MotorDePrecos {
 			"subototal" : subtotal,
 			"descontos" : [cupomCodigo,desconto],
 			"totalDescontos" : descontoEmPercentagem,
-			//"impostoPorCategoria" : {[categoria]}
-
+			"impostoPorCategoria" : categoriasTalao,
+			"totalImpostos" : impostos,
+			"frete" : frete,
+			"total" : total
 		}
         return breakdown;
     }
@@ -619,21 +618,31 @@ class MotorDePrecos {
 // - cancelar()
 
 class Pedido {
-	constructor({ id, clienteId, itens, breakdown }) {
-		// TODO
-		throw new Error("TODO: implementar Pedido");
-	}
+    constructor({ id, clienteId, itens, breakdown }) {
+        this.id = id;
+        this.clienteId = clienteId;
+        this.itens = itens;
+        this.breakdown = breakdown;
+        this.status = "ABERTO";
+        this.createdAt = new Date();
+    }
 
-	pagar() {
-		// TODO
-		throw new Error("TODO: implementar pagar");
-	}
+    pagar() {
+        if (this.status !== "ABERTO") {
+            throw new Error("Só é possível pagar pedidos ABERTOS");
+        }
+        this.status = "PAGO";
+    }
 
-	cancelar() {
-		// TODO
-		throw new Error("TODO: implementar cancelar");
-	}
+    cancelar() {
+        if (this.status === "PAGO") {
+            throw new Error("Não é possível cancelar um pedido já pago");
+        }
+        this.status = "CANCELADO";
+    }
 }
+
+
 
 // 10) Crie a classe CaixaRegistradora
 // Responsabilidades:
@@ -645,16 +654,83 @@ class Pedido {
 // - Deve somar parcelas por item e imprimir um resumo no cupom (opcional, mas recomendado)
 
 class CaixaRegistradora {
-	constructor({ catalogo, estoque, motorDePrecos }) {
-		// TODO
-		throw new Error("TODO: implementar CaixaRegistradora");
-	}
+    constructor({ catalogo, estoque, motorDePrecos }) {
+        this.catalogo = catalogo;
+        this.estoque = estoque;
+        this.motorDePrecos = motorDePrecos;
+    }
 
-	fecharCompra({ cliente, carrinho, cupomCodigo = null, numeroDeParcelas = 1 }) {
-		// TODO
-		throw new Error("TODO: implementar fecharCompra");
-	}
+    fecharCompra({ cliente, carrinho, cupomCodigo = null, numeroDeParcelas = 1 }) {
+        const itensProcessados = [];
+        let total = 0;
+        for (const [key, values] of carrinho.itens) {
+            const produto = this.catalogo.buscar(key);
+			const quantidade = values.quantidade;
+            if (!produto) {
+                throw new Error(`Produto ${key} não encontrado`);
+            }
+
+            // valida parcelas
+            if (numeroDeParcelas > produto.maxParcelas) {
+                throw new Error(
+                    `Produto ${produto.nome} permite no máximo ${produto.maxParcelas} parcelas`
+                );
+            }
+
+            // valida estoque
+            if (!this.estoque.getQuantidade(key, quantidade)) {
+                throw new Error(`Estoque insuficiente para ${produto.nome}`);
+            }
+
+            // remove do estoque
+            this.estoque.remover(key, quantidade);
+
+            // calcula preço
+            const precoFinal = this.motorDePrecos.calcular({
+                produto,
+                quantidade,
+                cupomCodigo,
+                numeroDeParcelas
+            });
+
+            total += precoFinal.total;
+
+            itensProcessados.push({
+                produtoId,
+                nome: produto.nome,
+                quantidade,
+                precoUnitario: precoFinal.unitario,
+                total: precoFinal.total,
+                parcelas: precoFinal.parcelas
+            });
+        }
+
+        // cria o pedido
+        const pedido = new Pedido({
+            id: crypto.randomUUID(),
+            clienteId: cliente.id,
+            itens: itensProcessados,
+            breakdown: {
+                total,
+                numeroDeParcelas
+            }
+        });
+
+        // registra no relatório (se existir)
+        if (typeof relatorio?.registrarVenda === "function") {
+            relatorio.registrarVenda(pedido);
+        }
+
+        // imprime cupom (se existir)
+        if (typeof impressora?.imprimir === "function") {
+            impressora.imprimir(pedido);
+        }
+
+        return pedido;
+    }
 }
+
+
 
 // 11) Crie a classe CupomFiscal
 // Deve gerar texto em linhas (array de strings) contendo:
@@ -862,11 +938,7 @@ function seedCatalogoEEstoque() {
 
 	return { catalogo, estoque };
 }
-const {catalogo,estoque} = seedCatalogoEEstoque()
 
-for(const [key, value] of catalogo.catalogo){
-	console.log(key,value.nome)
-}
 
 // ==========================================
 // DEMO (cenários obrigatórios)
@@ -895,7 +967,6 @@ function runDemo() {
 		carrinho.adicionarItem("CAMISETA", 2);
 		carrinho.adicionarItem("MEIA", 1);
 		carrinho.adicionarItem("CALCA", 1);
-
 		const pedido = caixa.fecharCompra({
 			cliente: clienteVip,
 			carrinho,
@@ -968,4 +1039,4 @@ function runDemo() {
 }
 
 // Quando terminar tudo, descomente:
-//runDemo();
+runDemo();
