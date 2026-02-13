@@ -552,16 +552,69 @@ class CaixaRegistradora {
 // - status do pedido
 
 class CupomFiscal {
-	constructor({ pedido, catalogo }) {
-		// TODO
-		throw new Error("TODO: implementar CupomFiscal");
-	}
+    constructor({ pedido, catalogo }) {
+        this.pedido = pedido;
+        this.catalogo = catalogo;
+    }
 
-	gerarLinhas() {
-		// TODO
-		throw new Error("TODO: implementar gerarLinhas");
-	}
+    gerarLinhas() {
+        const linhas = [];
+
+        // Cabeçalho
+        linhas.push("=== CUPOM FISCAL ===");
+        linhas.push(`Pedido: ${this.pedido.id}`);
+        linhas.push("");
+
+        // Itens
+        linhas.push("Itens:");
+        for (const item of this.pedido.itens) {
+            const prod = this.catalogo.buscar(item.sku);
+            const totalItem = item.preco * item.quantidade;
+
+            linhas.push(
+                `${item.sku} - ${prod.nome} | qtd: ${item.quantidade} | ` +
+                `$ ${item.preco.toFixed(2)} | total: $ ${totalItem.toFixed(2)}`
+            );
+        }
+
+        linhas.push("");
+
+        // Subtotal
+        const subtotal = this.pedido.itens.reduce(
+            (s, item) => s + item.preco * item.quantidade,
+            0
+        );
+        linhas.push(`Subtotal: $ ${subtotal.toFixed(2)}`);
+
+        // Descontos
+        if (this.pedido.descontos?.length) {
+            linhas.push("Descontos:");
+            for (const d of this.pedido.descontos) {
+                linhas.push(` - ${d.descricao}: -$ ${d.valor.toFixed(2)}`);
+            }
+        }
+
+        // Impostos
+        if (this.pedido.impostos?.length) {
+            linhas.push("Impostos:");
+            for (const imp of this.pedido.impostos) {
+                linhas.push(` - ${imp.categoria}: $ ${imp.valor.toFixed(2)}`);
+            }
+        }
+
+        // Frete
+        linhas.push(`Frete: $ ${this.pedido.frete.toFixed(2)}`);
+
+        // Total
+        linhas.push(`TOTAL: $ ${this.pedido.total.toFixed(2)}`);
+
+        linhas.push("");
+        linhas.push(`Status: ${this.pedido.status.toUpperCase()}`);
+
+        return linhas;
+    }
 }
+
 
 class Impressora {
 	imprimirLinhas(linhas) {
@@ -587,41 +640,70 @@ class Impressora {
 // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 
 class RelatorioVendas {
-	constructor() {
-		// TODO
-		throw new Error("TODO: implementar RelatorioVendas");
+    constructor() {
+        this.pedidosPagos = [];
+    }
+
+    registrarPedido(pedido) {
+        if (pedido.status !== "pago") return; 
+        this.pedidosPagos.push(pedido);
+    }
+
+    totalArrecadado() {
+        return this.pedidosPagos.reduce((total, pedido) => {
+            return total + pedido.total;
+        }, 0);
+    }
+
+    totalImpostos() {
+        return this.pedidosPagos.reduce((total, pedido) => {
+            return total + pedido.impostos;
+        }, 0);
+    }
+
+    totalDescontos() {
+        return this.pedidosPagos.reduce((total, pedido) => {
+            return total + pedido.descontos;
+        }, 0);
+    }
+
+    rankingProdutosPorQuantidade(topN = 5) {
+		const mapa = new Map();
+
+		for (const pedido of this.pedidosPagos) {
+			for (const item of pedido.itens) {
+				const atual = mapa.get(item.sku) || 0;
+				mapa.set(item.sku, atual + item.quantidade);
+			}
+		}
+
+		const lista = [];
+
+		for (const [sku, quantidade] of mapa.entries()) {
+			lista.push({ sku, quantidade });
+		}
+
+		lista.sort((a, b) => b.quantidade - a.quantidade);
+
+		return lista.slice(0, topN);
 	}
 
-	registrarPedido(pedido) {
-		// TODO
-		throw new Error("TODO: implementar registrarPedido");
-	}
 
-	totalArrecadado() {
-		// TODO
-		throw new Error("TODO: implementar totalArrecadado");
-	}
+    arrecadadoPorCategoria() {
+        const mapa = new Map();
 
-	totalImpostos() {
-		// TODO
-		throw new Error("TODO: implementar totalImpostos");
-	}
+        for (const pedido of this.pedidosPagos) {
+            for (const item of pedido.itens) {
+                const subtotal = item.preco * item.quantidade;
+                const atual = mapa.get(item.categoria) || 0;
+                mapa.set(item.categoria, atual + subtotal);
+            }
+        }
 
-	totalDescontos() {
-		// TODO
-		throw new Error("TODO: implementar totalDescontos");
-	}
-
-	rankingProdutosPorQuantidade(topN = 5) {
-		// TODO
-		throw new Error("TODO: implementar rankingProdutosPorQuantidade");
-	}
-
-	arrecadadoPorCategoria() {
-		// TODO
-		throw new Error("TODO: implementar arrecadadoPorCategoria");
-	}
+        return Object.fromEntries(mapa);
+    }
 }
+
 
 // ==========================================
 // DADOS DE TESTE (para o demo)
