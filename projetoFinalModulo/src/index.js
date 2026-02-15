@@ -1,33 +1,3 @@
-// ==========================================
-// DESAFIO FINAL 01
-// Tema: Mini-sistema de Loja + Caixa + Estoque
-// ==========================================
-
-// Objetivo
-// Você vai construir um sistema completo (em memória, sem banco de dados) que:
-// - mantém um catálogo de produtos e um estoque
-// - cria carrinhos de compra, valida quantidades e calcula totais
-// - aplica regras de preço (promoções/cupões) com prioridades e restrições
-// - calcula impostos (IVA) por categoria
-// - finaliza pedidos e imprime um cupom fiscal detalhado
-// - gera relatórios simples de vendas
-
-// Regras gerais
-// - Não use bibliotecas externas.
-// - Use apenas JavaScript (Node.js).
-// - Não apague as assinaturas (nomes/params) dos métodos marcados como TODO.
-// - Use estruturas de dados adequadas (Map/Array/Object).
-// - Todas as validações devem lançar Error com mensagens claras.
-
-// Como usar
-// - Complete os TODOs.
-// - Ao final, descomente a chamada de runDemo() no fim do arquivo.
-// - O demo executa cenários que devem passar.
-
-// ==========================================
-// PARTE 0 - Dados e utilitários
-// ==========================================
-
 const CATEGORIAS = [
 	"eletrodoméstico",
 	"decoração",
@@ -44,482 +14,56 @@ const IVA_POR_CATEGORIA = {
 	"alimentos": 0.06
 };
 
+
 function round2(value) {
-	return Math.round((value + Number.EPSILON) * 100) / 100;
+    return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 function formatBRL(value) {
-	// Evite Intl se quiser praticar manualmente.
-	return `R$ ${round2(value).toFixed(2)}`.replace(".", ",");
+    return `$ ${round2(value).toFixed(2)}`.replace(".", ",");
 }
 
 function assertPositiveNumber(value, label) {
-	if (typeof value !== "number" || Number.isNaN(value) || !Number.isFinite(value) || value <= 0) {
-		throw new Error(`${label} deve ser um número positivo.`);
-	}
+    if (typeof value !== "number" || Number.isNaN(value) || !Number.isFinite(value) || value <= 0) {
+        throw new Error(`${label} deve ser um número positivo.`);
+    }
 }
 
 function assertNonNegativeInt(value, label) {
-	if (!Number.isInteger(value) || value < 0) {
-		throw new Error(`${label} deve ser um inteiro >= 0.`);
-	}
+    if (!Number.isInteger(value) || value < 0) {
+        throw new Error(`${label} deve ser um inteiro >= 0.`);
+    }
 }
 
 function assertCategoriaValida(categoria) {
-	if (!CATEGORIAS.includes(categoria)) {
-		throw new Error(`Categoria inválida: ${categoria}. Aceitas: ${CATEGORIAS.join(", ")}`);
-	}
-}
-
-// ==========================================
-// PARTE 1 - Modelos principais (classes)
-// ==========================================
-
-// 1) Crie a classe Produto
-// Requisitos mínimos:
-// - sku (string) único
-// - nome (string)
-// - preco (number > 0)
-// - fabricante (string)
-// - categoria (deve estar em CATEGORIAS)
-// - numeroMaximoParcelas (int 1..24)
-// Métodos:
-// - getValorDeParcela(numeroDeParcelas) => number
-//   - deve validar: numeroDeParcelas int >=1 e <= numeroMaximoParcelas
-//   - retorna preco / numeroDeParcelas (2 casas)
-
-class Produto {
-	constructor({ sku, nome, preco, fabricante, categoria, numeroMaximoParcelas }) {
-
-        assertCategoriaValida(categoria);
-
-		this.sku = sku,
-        this.nome = nome,
-        this.preco = preco,
-        this.fabricante = fabricante,
-        this.categoria = categoria,
-        this.numeroMaximoParcelas = numeroMaximoParcelas
-//		throw new Error("TODO: implementar Produto");
-	}
-
-	getValorDeParcela(numeroDeParcelas) {
-        if(numeroDeParcelas>this.numeroMaximoParcelas || numeroDeParcelas<1){
-            console.log("ERRO, Número de parcelas inválido");
-            return
-        }
-        const precoPorParcela = this.preco/numeroDeParcelas;
-        return precoPorParcela
-//      throw new Error("TODO: implementar getValorDeParcela");
-	}
-}
-
-
-// const produtos = [
-//     new Produto({
-//         sku: "ELE001",
-//         nome: "Máquina de Lavar",
-//         preco: 399.99,
-//         fabricante: "Bosch",
-//         categoria: "eletrodoméstico",
-//         numeroMaximoParcelas: 12
-//     }),
-//     new Produto({
-//         sku: "DEC010",
-//         nome: "Candeeiro de Mesa",
-//         preco: 29.90,
-//         fabricante: "IKEA",
-//         categoria: "decoração",
-//         numeroMaximoParcelas: 6
-//     }),
-//     new Produto({
-//         sku: "MAT200",
-//         nome: "Saco de Cimento 25kg",
-//         preco: 4.50,
-//         fabricante: "Cimpor",
-//         categoria: "materiais de construção",
-//         numeroMaximoParcelas: 3
-//     }),
-//     new Produto({
-//         sku: "VES050",
-//         nome: "Camisola de Algodão",
-//         preco: 14.99,
-//         fabricante: "Zara",
-//         categoria: "vestuário",
-//         numeroMaximoParcelas: 4
-//     }),
-//     new Produto({
-//         sku: "ALI300",
-//         nome: "Arroz Agulha 1kg",
-//         preco: 1.20,
-//         fabricante: "Continente",
-//         categoria: "alimentos",
-//         numeroMaximoParcelas: 1
-//     })
-// ];
-
-// 2) Crie a classe Cliente
-// Requisitos:
-// - id (string)
-// - nome (string)
-// - tipo: "REGULAR" | "VIP"
-// - saldoPontos (int >= 0)
-// Métodos:
-// - adicionarPontos(pontos)
-// - resgatarPontos(pontos) => diminui saldo, valida
-
-class Cliente {
-	constructor({ id, nome, tipo = "REGULAR", saldoPontos = 0 }) {
-        this.id = id,
-        this.nome = nome,
-        this.tipo = tipo,
-        this.saldoPontos = saldoPontos;
-//        throw new Error("TODO: implementar Cliente");
-	}
-
-	adicionarPontos(pontos) {
-		this.saldoPontos += pontos;
-        return this.saldoPontos;
-//		throw new Error("TODO: implementar adicionarPontos");
-	}
-
-	resgatarPontos(pontos) {
-        if(this.saldoPontos<pontos){
-            console.log("O utilizador não tem pontos suficientes :(")
-            return
-        }
-        this.saldoPontos -= pontos;
-        return this.saldoPontos
-//        throw new Error("TODO: implementar resgatarPontos");
-	}
-}
-
-// 3) Crie a classe ItemCarrinho
-// Requisitos:
-// - sku (string)
-// - quantidade (int >= 1)
-// - precoUnitario (number > 0) *congelado no momento de adicionar*
-// Observação: o carrinho usa precoUnitario do momento (para simular mudança de preço no catálogo).
-
-class ItemCarrinho {
-	constructor({ sku, quantidade, precoUnitario }) {
-        this.sku = sku,
-        this.quantidade = quantidade,
-        this.precoUnitario = precoUnitario;
-	}
-
-	getTotal() {
-    const precoFinal = this.quantidade * this.precoUnitario;
-    return precoFinal;
-        //throw new Error("TODO: implementar getTotal");
-	}
-}
-
-// 4) Crie a classe Estoque
-// Use Map para guardar { sku -> quantidade }
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
-// Métodos:
-// - definirQuantidade(sku, quantidade)
-// - adicionar(sku, quantidade)
-// - remover(sku, quantidade)
-// - getQuantidade(sku)
-// - garantirDisponibilidade(sku, quantidade)
-
-class Estoque {
-	constructor() {
-        this.stock = new Map(); // o mapa vive DENTRO da classe
-  //      throw new Error("TODO: implementar Estoque");
-	}
-
-	definirQuantidade(sku, quantidade) {
-        this.stock.set(sku,quantidade);
-        return;
-//        throw new Error("TODO: implementar definirQuantidade");
-	}
-
-	adicionar(sku, quantidade) {
-		const estoqueAtual = this.getQuantidade(sku); 
-        this.stock.set(sku, estoqueAtual + quantidade);
-        return;
-	//	throw new Error("TODO: implementar adicionar");
-	}
-
-	remover(sku, quantidade) {
-		const atual = this.getQuantidade(sku); 
-        if (quantidade > atual) { 
-            throw new Error(`Estoque insuficiente para remover ${quantidade} unidades de ${sku}`); 
-        } 
-        this.stock.set(sku, atual - quantidade);
-        return;
-		//throw new Error("TODO: implementar remover");
-	}
-
-	getQuantidade(sku) {
-        const estoqueAtual = this.stock.get(sku) === undefined ? 0 : this.stock.get(sku);
-        return estoqueAtual;
-       // throw new Error("TODO: implementar getQuantidade");
-	}
-
-	garantirDisponibilidade(sku, quantidade) {
-		const atual = this.getQuantidade(sku); 
-        if (atual < quantidade) { 
-            throw new Error(`Não há quantidade suficiente de ${sku}. Disponível: ${atual}`); 
-        }
-	//	throw new Error("TODO: implementar garantirDisponibilidade");
-	}
-}
-
-// 5) Crie a classe Catalogo
-// Use Map para guardar { sku -> Produto }
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
-// Métodos:
-// - adicionarProduto(produto)
-// - getProduto(sku)
-// - listarPorCategoria(categoria)
-// - atualizarPreco(sku, novoPreco)
-
-class Catalogo {
-	constructor() {
-		this.catalogo = new Map(); // o mapa vive DENTRO da classe
-		//throw new Error("TODO: implementar Catalogo");
-	}   
-
-	adicionarProduto(produto) { 
-        if (!produto || !produto.sku) { 
-            throw new Error("Produto inválido"); 
-        } 
-        this.catalogo.set(
-			produto.sku,{
-				nome : produto.nome, 
-				preco : produto.preco, 
-				fabricante : produto.fabricante, 
-				categoria : produto.categoria, 
-				numeroMaximoParcelas: produto.numeroMaximoParcelas
-			} ); 
-    }
-
-	getProduto(sku) {
-        return this.catalogo.get(sku);
-//		throw new Error("TODO: implementar getProduto");
-	}
-
-	listarPorCategoria(categoria) {
-        if (!CATEGORIAS.includes(categoria)) {
-            throw new Error(`Categoria inválida: ${categoria}`);
-        }
-
-        const resultado = [];
-
-        for (const produto of this.catalogo.values()) {
-            if (produto.categoria === categoria) {
-                resultado.push(produto);
-            }
-        }
-
-        return resultado;
-    }
-
-
-	atualizarPreco(sku, novoPreco) {
-        const produto = this.catalogo.get(sku);
-
-        if (!produto) {
-            throw new Error(`Produto com SKU ${sku} não encontrado`);
-        }
-
-        produto.preco = novoPreco;
-
-        this.catalogo.set(sku, produto);
-    }
-
-	buscar(id){
-		for(const [key] of this.catalogo){
-			if(id === key){
-				return key
-			}
-		}
-	}
-}
-
-
-// const catalogoVariavel = new Catalogo()
-
-// for (const produtoUnico of produtos) { 
-//     catalogoVariavel.adicionarProduto(produtoUnico); 
-// }
-
-// console.log(catalogoVariavel)
-
-// for(const [key, value] of catalogoVariavel.catalogo){
-// 	console.log(key,value.nome)
-// }
-
-// 6) Crie a classe CarrinhoDeCompras
-// Responsabilidades:
-// - adicionar itens (validando estoque)
-// - remover itens
-// - alterar quantidade
-// - calcular subtotal
-// - consolidar itens por sku (sem duplicatas)
-// Sugestão: use Map sku -> ItemCarrinho
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
-
-class CarrinhoDeCompras {
-    constructor({ catalogo, estoque }) {
-        this.catalogo = catalogo;  
-        this.estoque = estoque;     
-        this.itens = new Map();     
-    }
-
-    adicionarItem(sku, quantidade) {
-        // validar se o produto existe no catálogo
-        const produto = this.catalogo.getProduto(sku);
-        if (!produto) {
-            throw new Error(`Produto ${sku} não existe no catálogo`);
-        }
-
-        // validar estoque
-        this.estoque.garantirDisponibilidade(sku, quantidade);
-
-        // se já existe no carrinho, soma
-        const itemExistente = this.itens.get(sku);
-
-        if (itemExistente) {
-            itemExistente.quantidade += quantidade;
-        } else {
-            this.itens.set(sku, new ItemCarrinho({
-                sku,
-                quantidade,
-                precoUnitario: produto.preco
-            }));
-        }
-    }
-
-    removerItem(sku) {
-        if (!this.itens.has(sku)) {
-            throw new Error(`Item ${sku} não está no carrinho`);
-        }
-        this.itens.delete(sku);
-    }
-
-    alterarQuantidade(sku, novaQuantidade) {
-        const item = this.itens.get(sku);
-
-        if (!item) {
-            throw new Error(`Item ${sku} não está no carrinho`);
-        }
-
-        if (novaQuantidade <= 0) {
-            this.itens.delete(sku);
-            return;
-        }
-
-        // validar estoque
-        this.estoque.garantirDisponibilidade(sku, novaQuantidade);
-
-        item.quantidade = novaQuantidade;
-    }
-
-    listarItens() {
-        for (const item of this.itens.values()) {
-            console.log(item);
-        }
-    }
-
-
-    getSubtotal() {
-        let total = 0;
-
-        for (const item of this.itens.values()) {
-            total += item.getTotal();
-        }
-        return total;
+    if (!CATEGORIAS.includes(categoria)) {
+        throw new Error(`Categoria inválida: ${categoria}. Aceitas: ${CATEGORIAS.join(", ")}`);
     }
 }
-
-
-
-// ==========================================
-// PARTE 2 - Regras de preço (promoções)
-// ==========================================
-
-// Você implementará um motor de preços com as regras abaixo.
-// Você deve conseguir produzir um “breakdown” (quebra) do total:
-// - subtotal
-// - descontos (lista com nome + valor)
-// - base de imposto
-// - imposto total
-// - frete
-// - total final
-
-// Estrutura sugerida do breakdown (objeto):
-// {
-//   subtotal,
-//   descontos: [{ codigo, descricao, valor }],
-//   totalDescontos,
-//   impostoPorCategoria: { [categoria]: valor },
-//   totalImpostos,
-//   frete,
-//   total
-// }
-
-// 7) Regras obrigatórias (todas devem existir e ser testáveis):
-// R1 - Desconto VIP:
-// - Se cliente.tipo === "VIP", aplica 5% no subtotal (apenas uma vez).
-// - Não pode ser aplicado se existir cupom "SEM-VIP".
-//
-// R2 - Cupom:
-// - Cupom "ETIC10" => 10% no subtotal
-// - Cupom "FRETEGRATIS" => frete zerado
-// - Cupom "SEM-VIP" => bloqueia R1
-// - Cupom inválido deve lançar Error
-//
-// R3 - Leve 3 pague 2 (vestuário):
-// - Para produtos da categoria "vestuário": a cada 3 unidades (somando SKUs diferentes),
-//   a unidade mais barata dentre as 3 sai grátis.
-// - Ex: 3 camisetas (10), 1 calça (50), 1 meia (5) => total unidades=5 => aplica 1 grátis
-//   (a mais barata dentro do grupo de 3) e sobram 2 sem promo.
-//
-// R4 - Desconto por valor:
-// - Se subtotal >= 500, aplica desconto fixo de 30.
-//
-// Observação de dificuldade:
-// - Você precisa decidir ordem de aplicação e documentar.
-// - Você precisa impedir descontos maiores que o subtotal.
-// - Deve ser determinístico.
-
-// 8) Crie uma classe MotorDePrecos
-// Método principal:
-// - calcular({ cliente, itens, cupomCodigo }) => breakdown
-// Onde itens é o resultado de carrinho.listarItens()
 
 
 let breakdown =  {
-	subtotal : 0,
-	descontos: [/*{ codigo, descricao, valor }*/],
-	totalDescontos : 0,
-	impostoPorCategoria: {/* [categoria]: valor */},
-	totalImpostos : 0,
-	frete: 0,
-	total : 0
-}
+    subtotal : 0,
+    descontos: [],
+    totalDescontos : 0,
+    impostoPorCategoria: {},
+    totalImpostos : 0,
+    frete: 0,
+    total : 0
+};
 
 function regra1(cliente) {
-    const desconto = cliente === "VIP" ? 5 : 0;
-    return desconto;
+    return cliente.tipo === "VIP" ? 5 : 0;
 }
 
-function regra2(cupom, frete, descontoAnterior) {
-    let desconto = cupom === "ETIC10" ? 10 : 0;
+function regra2(cupom, frete, descontoVIP) {
+    let descontoCupom = 0;
 
-    if (cupom === "FRETEGRATIS") {
-        frete = 0;
-    }
+    if (cupom === "ETIC10") descontoCupom = 10;
+    if (cupom === "FRETEGRATIS") frete = 0;
+    if (cupom === "SEM-VIP") descontoVIP = 0;
 
-    if (cupom === "SEM-VIP") {
-        descontoAnterior = 0;
-    }
-
-    return { desconto, frete, descontoAnterior };
+    return { descontoCupom, frete, descontoVIP };
 }
 
 function regra3(carrinhoDeCompras) {
@@ -545,12 +89,225 @@ function regra3(carrinhoDeCompras) {
 }
 
 function regra4(precoTotal) {
-    const precoFinal = precoTotal >= 500 ? precoTotal - 30 : precoTotal;
-    return precoFinal;
+    return precoTotal >= 500 ? precoTotal - 30 : precoTotal;
 }
 
-function usarDescontos(preco,desconto){
-	precoFinal = preco*(desconto/100)
+function usarDescontos(preco, descontoPercentual) {
+    if (!descontoPercentual || descontoPercentual <= 0) return 0;
+    return preco * (descontoPercentual / 100);
+}
+
+// ================== MODELOS ==================
+
+class Produto {
+    constructor({ sku, nome, preco, fabricante, categoria, numeroMaximoParcelas }) {
+        assertCategoriaValida(categoria);
+        assertPositiveNumber(preco, "Preço");
+        assertNonNegativeInt(numeroMaximoParcelas, "Número máximo de parcelas");
+
+        this.sku = sku;
+        this.nome = nome;
+        this.preco = preco;
+        this.fabricante = fabricante;
+        this.categoria = categoria;
+        this.numeroMaximoParcelas = numeroMaximoParcelas;
+    }
+
+    getValorDeParcela(numeroDeParcelas) {
+        if (numeroDeParcelas > this.numeroMaximoParcelas || numeroDeParcelas < 1) {
+            console.log("ERRO, Número de parcelas inválido");
+            return;
+        }
+        return this.preco / numeroDeParcelas;
+    }
+}
+
+class Cliente {
+    constructor({ id, nome, tipo = "REGULAR", saldoPontos = 0 }) {
+        this.id = id;
+        this.nome = nome;
+        this.tipo = tipo;
+        this.saldoPontos = saldoPontos;
+    }
+
+    adicionarPontos(pontos) {
+        this.saldoPontos += pontos;
+        return this.saldoPontos;
+    }
+
+    resgatarPontos(pontos) {
+        if (this.saldoPontos < pontos) {
+            console.log("O utilizador não tem pontos suficientes :(");
+            return;
+        }
+        this.saldoPontos -= pontos;
+        return this.saldoPontos;
+    }
+}
+
+class ItemCarrinho {
+    constructor({ sku, quantidade, precoUnitario }) {
+        assertNonNegativeInt(quantidade, "Quantidade");
+        assertPositiveNumber(precoUnitario, "Preço unitário");
+
+        this.sku = sku;
+        this.quantidade = quantidade;
+        this.precoUnitario = precoUnitario;
+    }
+
+    getTotal() {
+        return this.quantidade * this.precoUnitario;
+    }
+}
+
+class Estoque {
+    constructor() {
+        this.stock = new Map();
+    }
+
+    definirQuantidade(sku, quantidade) {
+        assertNonNegativeInt(quantidade, "Quantidade em estoque");
+        this.stock.set(sku, quantidade);
+    }
+
+    adicionar(sku, quantidade) {
+        assertNonNegativeInt(quantidade, "Quantidade a adicionar");
+        const atual = this.getQuantidade(sku);
+        this.stock.set(sku, atual + quantidade);
+    }
+
+    remover(sku, quantidade) {
+        assertNonNegativeInt(quantidade, "Quantidade a remover");
+        const atual = this.getQuantidade(sku);
+        if (quantidade > atual) {
+            throw new Error(`Estoque insuficiente para remover ${quantidade} unidades de ${sku}`);
+        }
+        this.stock.set(sku, atual - quantidade);
+    }
+
+    getQuantidade(sku) {
+        const valor = this.stock.get(sku);
+        return valor === undefined ? 0 : valor;
+    }
+
+    garantirDisponibilidade(sku, quantidade) {
+        const atual = this.getQuantidade(sku);
+        if (atual < quantidade) {
+            throw new Error(`Não há quantidade suficiente de ${sku}. Disponível: ${atual}`);
+        }
+    }
+}
+
+class Catalogo {
+    constructor() {
+        this.catalogo = new Map();
+    }
+
+    adicionarProduto(produto) {
+        if (!produto || !produto.sku) {
+            throw new Error("Produto inválido");
+        }
+        // guarda o Produto completo
+        this.catalogo.set(produto.sku, produto);
+    }
+
+    getProduto(sku) {
+        return this.catalogo.get(sku);
+    }
+
+    buscar(sku) {
+        return this.catalogo.get(sku);
+    }
+
+    listarPorCategoria(categoria) {
+        assertCategoriaValida(categoria);
+
+        const resultado = [];
+        for (const produto of this.catalogo.values()) {
+            if (produto.categoria === categoria) {
+                resultado.push(produto);
+            }
+        }
+        return resultado;
+    }
+
+    atualizarPreco(sku, novoPreco) {
+        assertPositiveNumber(novoPreco, "Novo preço");
+        const produto = this.catalogo.get(sku);
+        if (!produto) {
+            throw new Error(`Produto com SKU ${sku} não encontrado`);
+        }
+        produto.preco = novoPreco;
+    }
+}
+
+class CarrinhoDeCompras {
+    constructor({ catalogo, estoque }) {
+        this.catalogo = catalogo;
+        this.estoque = estoque;
+        this.itens = new Map(); // sku -> ItemCarrinho
+    }
+
+    adicionarItem(sku, quantidade) {
+        const produto = this.catalogo.getProduto(sku);
+        if (!produto) {
+            throw new Error(`Produto ${sku} não existe no catálogo`);
+        }
+
+        this.estoque.garantirDisponibilidade(sku, quantidade);
+
+        const itemExistente = this.itens.get(sku);
+
+        if (itemExistente) {
+            itemExistente.quantidade += quantidade;
+        } else {
+            this.itens.set(
+                sku,
+                new ItemCarrinho({
+                    sku,
+                    quantidade,
+                    precoUnitario: produto.preco
+                })
+            );
+        }
+    }
+
+    removerItem(sku) {
+        if (!this.itens.has(sku)) {
+            throw new Error(`Item ${sku} não está no carrinho`);
+        }
+        this.itens.delete(sku);
+    }
+
+    alterarQuantidade(sku, novaQuantidade) {
+        const item = this.itens.get(sku);
+
+        if (!item) {
+            throw new Error(`Item ${sku} não está no carrinho`);
+        }
+
+        if (novaQuantidade <= 0) {
+            this.itens.delete(sku);
+            return;
+        }
+
+        this.estoque.garantirDisponibilidade(sku, novaQuantidade);
+        item.quantidade = novaQuantidade;
+    }
+
+    listarItens() {
+        for (const item of this.itens.values()) {
+            console.log(item);
+        }
+    }
+
+    getSubtotal() {
+        let total = 0;
+        for (const item of this.itens.values()) {
+            total += item.getTotal();
+        }
+        return total;
+    }
 }
 
 class MotorDePrecos {
@@ -559,63 +316,62 @@ class MotorDePrecos {
     }
 
     calcular({ cliente, itens, cupomCodigo }) {
-        let frete = 20; // valor base
-        let desconto = regra1(cliente);
-        const r2 = regra2(cupomCodigo, frete, desconto);
+        let frete = 20;
+
+        // Regra 1 — VIP
+        let descontoVIP = regra1(cliente);
+
+        // Regra 2 — cupom
+        const r2 = regra2(cupomCodigo, frete, descontoVIP);
         frete = r2.frete;
-        desconto += r2.desconto;
-        desconto = r2.descontoAnterior; 
-		let subtotal = 0
-		let categoriasTalao = {}; 
-		let impostos = 0;
-		for (const produto of itens) {
+        descontoVIP = r2.descontoVIP;
+        const descontoCupom = r2.descontoCupom;
 
-			let preco = this.catalogo[produto.sku].preco * produto.quantidade;
+        let subtotal = 0;
+        let categoriasTalao = {};
+        let impostos = 0;
 
-			subtotal += preco;
-			impostos += IVA_POR_CATEGORIA[produto.categoria] 
-			if (produto.categoria in categoriasTalao) {
-				categoriasTalao[produto.categoria] += IVA_POR_CATEGORIA[produto.categoria];
-			} else {
-				categoriasTalao[produto.categoria] = IVA_POR_CATEGORIA[produto.categoria];
-			}
-		}
+        for (const item of itens) {
+            const produto = this.catalogo.buscar(item.sku);
+            if (!produto) {
+                throw new Error(`Produto ${item.sku} não encontrado no catálogo`);
+            }
 
+            const preco = produto.preco * item.quantidade;
+            subtotal += preco;
 
-		descontoEmPercentagem = usarDescontos(total,desconto);
+            const impostoCategoria = IVA_POR_CATEGORIA[item.categoria];
+            const valorImposto = preco * impostoCategoria;
+            impostos += valorImposto;
+
+            categoriasTalao[item.categoria] =
+                (categoriasTalao[item.categoria] || 0) + valorImposto;
+        }
+
+        let total = subtotal + impostos;
+
+        const descontoVIPValor = usarDescontos(total, descontoVIP);
+        const descontoCupomValor = usarDescontos(total, descontoCupom);
+
+        const totalDescontos = descontoVIPValor + descontoCupomValor;
+
         total = regra4(total);
-		total = total + frete - descontoEmPercentagem;
+        total = total + frete - totalDescontos;
 
-
-		breakdown = {
-			"subototal" : subtotal,
-			"descontos" : [cupomCodigo,desconto],
-			"totalDescontos" : descontoEmPercentagem,
-			"impostoPorCategoria" : categoriasTalao,
-			"totalImpostos" : impostos,
-			"frete" : frete,
-			"total" : total
-		}
-        return breakdown;
+        return {
+            subtotal,
+            descontos: {
+                vip: descontoVIPValor,
+                cupom: descontoCupomValor
+            },
+            totalDescontos,
+            impostoPorCategoria: categoriasTalao,
+            totalImpostos: impostos,
+            frete,
+            total
+        };
     }
 }
-
-
-// ==========================================
-// PARTE 3 - Checkout / Pedido / Cupom
-// ==========================================
-
-// 9) Crie a classe Pedido
-// Requisitos:
-// - id (string)
-// - clienteId
-// - itens (array)
-// - breakdown (objeto)
-// - status: "ABERTO" | "PAGO" | "CANCELADO"
-// - createdAt (Date)
-// Métodos:
-// - pagar()
-// - cancelar()
 
 class Pedido {
     constructor({ id, clienteId, itens, breakdown }) {
@@ -623,7 +379,7 @@ class Pedido {
         this.clienteId = clienteId;
         this.itens = itens;
         this.breakdown = breakdown;
-        this.status = "ABERTO";
+        this.status = "ABERTO"; 
         this.createdAt = new Date();
     }
 
@@ -642,102 +398,86 @@ class Pedido {
     }
 }
 
-
-
-// 10) Crie a classe CaixaRegistradora
-// Responsabilidades:
-// - receber (catalogo, estoque, motorDePrecos)
-// - fecharCompra({ cliente, carrinho, cupomCodigo, numeroDeParcelas }) => Pedido
-// Regras:
-// - Ao fechar compra, deve remover do estoque as quantidades compradas
-// - Se numeroDeParcelas for informado, deve validar com base no Produto (máximo permitido)
-// - Deve somar parcelas por item e imprimir um resumo no cupom (opcional, mas recomendado)
-
 class CaixaRegistradora {
-    constructor({ catalogo, estoque, motorDePrecos }) {
+    constructor({ catalogo, estoque, motorDePrecos, relatorio, impressora }) {
         this.catalogo = catalogo;
         this.estoque = estoque;
         this.motorDePrecos = motorDePrecos;
+        this.relatorio = relatorio;
+        this.impressora = impressora;
     }
 
-    fecharCompra({ cliente, carrinho, cupomCodigo = null, numeroDeParcelas = 1 }) {
+    fecharCompra({
+        cliente,
+        carrinho,
+        cupomCodigo = null,
+        numeroDeParcelas = 1
+    } = {}) {
+
         const itensProcessados = [];
-        let total = 0;
-        for (const [key, values] of carrinho.itens) {
-            const produto = this.catalogo.buscar(key);
-			const quantidade = values.quantidade;
-            if (!produto) {
-                throw new Error(`Produto ${key} não encontrado`);
+        const itensParaPreco = [];
+
+        for (const [sku, itemCarrinho] of carrinho.itens) {
+            if (!sku || !itemCarrinho) {
+                throw new Error("Item do carrinho inválido");
             }
 
-            // valida parcelas
-            if (numeroDeParcelas > produto.maxParcelas) {
+            const produto = this.catalogo.buscar(sku);
+            const quantidade = itemCarrinho.quantidade;
+
+            if (!produto) {
+                throw new Error(`Produto ${sku} não encontrado no catálogo`);
+            }
+
+            const maxParcelas = produto.numeroMaximoParcelas ?? 1;
+            if (numeroDeParcelas > maxParcelas) {
                 throw new Error(
-                    `Produto ${produto.nome} permite no máximo ${produto.maxParcelas} parcelas`
+                    `Produto ${produto.nome} permite no máximo ${maxParcelas} parcelas`
                 );
             }
 
-            // valida estoque
-            if (!this.estoque.getQuantidade(key, quantidade)) {
-                throw new Error(`Estoque insuficiente para ${produto.nome}`);
-            }
-
-            // remove do estoque
-            this.estoque.remover(key, quantidade);
-
-            // calcula preço
-            const precoFinal = this.motorDePrecos.calcular({
-                produto,
-                quantidade,
-                cupomCodigo,
-                numeroDeParcelas
-            });
-
-            total += precoFinal.total;
+            this.estoque.garantirDisponibilidade(sku, quantidade);
+            this.estoque.remover(sku, quantidade);
 
             itensProcessados.push({
-                produtoId,
+                produtoId: sku,
                 nome: produto.nome,
                 quantidade,
-                precoUnitario: precoFinal.unitario,
-                total: precoFinal.total,
-                parcelas: precoFinal.parcelas
+                precoUnitario: produto.preco,
+                categoria: produto.categoria
+            });
+
+            itensParaPreco.push({
+                sku,
+                quantidade,
+                categoria: produto.categoria
             });
         }
 
-        // cria o pedido
+        const breakdown = this.motorDePrecos.calcular({
+            itens: itensParaPreco,
+            cupomCodigo,
+            cliente
+        });
+
         const pedido = new Pedido({
             id: crypto.randomUUID(),
             clienteId: cliente.id,
             itens: itensProcessados,
-            breakdown: {
-                total,
-                numeroDeParcelas
-            }
+            breakdown
         });
 
-        // registra no relatório (se existir)
-        if (typeof relatorio?.registrarVenda === "function") {
-            relatorio.registrarVenda(pedido);
+        if (typeof this.relatorio?.registrarPedido === "function") {
+            this.relatorio.registrarPedido(pedido);
         }
 
-        // imprime cupom (se existir)
-        if (typeof impressora?.imprimir === "function") {
-            impressora.imprimir(pedido);
+        if (typeof this.impressora?.imprimir === "function") {
+            this.impressora.imprimir(pedido, this.catalogo);
         }
 
         return pedido;
     }
 }
-
-
-
-// 11) Crie a classe CupomFiscal
-// Deve gerar texto em linhas (array de strings) contendo:
-// - cabeçalho
-// - itens: sku, quantidade, preço unitário, total do item
-// - subtotal, descontos (linha por desconto), impostos (por categoria), frete, total
-// - status do pedido
 
 class CupomFiscal {
     constructor({ pedido, catalogo }) {
@@ -748,84 +488,69 @@ class CupomFiscal {
     gerarLinhas() {
         const linhas = [];
 
-        // Cabeçalho
         linhas.push("=== CUPOM FISCAL ===");
         linhas.push(`Pedido: ${this.pedido.id}`);
         linhas.push("");
 
-        // Itens
         linhas.push("Itens:");
         for (const item of this.pedido.itens) {
-            const prod = this.catalogo.buscar(item.sku);
-            const totalItem = item.preco * item.quantidade;
+            const prod = this.catalogo.buscar(item.produtoId);
+
+            if (!prod) {
+                linhas.push(`${item.produtoId} - PRODUTO NÃO ENCONTRADO`);
+                continue;
+            }
+
+            const totalItem = item.precoUnitario * item.quantidade;
 
             linhas.push(
-                `${item.sku} - ${prod.nome} | qtd: ${item.quantidade} | ` +
-                `$ ${item.preco.toFixed(2)} | total: $ ${totalItem.toFixed(2)}`
+                `${item.produtoId} - ${prod.nome} | qtd: ${item.quantidade} | ` +
+                `${formatBRL(item.precoUnitario)} | total: ${formatBRL(totalItem)}`
             );
         }
 
         linhas.push("");
 
-        // Subtotal
         const subtotal = this.pedido.itens.reduce(
-            (s, item) => s + item.preco * item.quantidade,
+            (s, item) => s + item.precoUnitario * item.quantidade,
             0
         );
-        linhas.push(`Subtotal: $ ${subtotal.toFixed(2)}`);
+        linhas.push(`Subtotal: ${formatBRL(subtotal)}`);
 
-        // Descontos
-        if (this.pedido.descontos?.length) {
-            linhas.push("Descontos:");
-            for (const d of this.pedido.descontos) {
-                linhas.push(` - ${d.descricao}: -$ ${d.valor.toFixed(2)}`);
-            }
+        if (this.pedido.breakdown.totalDescontos) {
+            linhas.push(`Descontos: -${formatBRL(this.pedido.breakdown.totalDescontos)}`);
         }
 
-        // Impostos
-        if (this.pedido.impostos?.length) {
-            linhas.push("Impostos:");
-            for (const imp of this.pedido.impostos) {
-                linhas.push(` - ${imp.categoria}: $ ${imp.valor.toFixed(2)}`);
-            }
+        if (this.pedido.breakdown.totalImpostos) {
+            linhas.push(`Impostos: ${formatBRL(this.pedido.breakdown.totalImpostos)}`);
         }
 
-        // Frete
-        linhas.push(`Frete: $ ${this.pedido.frete.toFixed(2)}`);
+        if (this.pedido.breakdown.frete !== undefined) {
+            linhas.push(`Frete: ${formatBRL(this.pedido.breakdown.frete)}`);
+        }
 
-        // Total
-        linhas.push(`TOTAL: $ ${this.pedido.total.toFixed(2)}`);
+        linhas.push(`TOTAL: ${formatBRL(this.pedido.breakdown.total)}`);
 
         linhas.push("");
-        linhas.push(`Status: ${this.pedido.status.toUpperCase()}`);
+        linhas.push(`Status: ${this.pedido.status?.toUpperCase?.() || "PAGO"}`);
 
         return linhas;
     }
 }
 
-
 class Impressora {
-	imprimirLinhas(linhas) {
-		for (const linha of linhas) {
-			console.log(linha);
-		}
-	}
+    imprimir(pedido, catalogo) {
+        const cupom = new CupomFiscal({ pedido, catalogo });
+        const linhas = cupom.gerarLinhas();
+        this.imprimirLinhas(linhas);
+    }
+
+    imprimirLinhas(linhas) {
+        for (const linha of linhas) {
+            console.log(linha);
+        }
+    }
 }
-
-// ==========================================
-// PARTE 4 - Relatórios (estruturas de dados + loops)
-// ==========================================
-
-// 12) Crie a classe RelatorioVendas
-// - Deve armazenar pedidos pagos
-// - Deve gerar:
-//   - totalArrecadado()
-//   - totalImpostos()
-//   - totalDescontos()
-//   - rankingProdutosPorQuantidade(topN)
-//   - arrecadadoPorCategoria()
-// Sugestão: use Map para acumular por sku/categoria.
-// https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 
 class RelatorioVendas {
     constructor() {
@@ -833,64 +558,64 @@ class RelatorioVendas {
     }
 
     registrarPedido(pedido) {
-        if (pedido.status !== "pago") return; 
+        if (pedido.status !== "PAGO") return;
         this.pedidosPagos.push(pedido);
     }
 
     totalArrecadado() {
         return this.pedidosPagos.reduce((total, pedido) => {
-            return total + pedido.total;
+            return total + (pedido.breakdown?.total || 0);
         }, 0);
     }
 
     totalImpostos() {
         return this.pedidosPagos.reduce((total, pedido) => {
-            return total + pedido.impostos;
+            return total + (pedido.breakdown?.totalImpostos || 0);
         }, 0);
     }
 
     totalDescontos() {
         return this.pedidosPagos.reduce((total, pedido) => {
-            return total + pedido.descontos;
+            return total + (pedido.breakdown?.totalDescontos || 0);
         }, 0);
     }
 
     rankingProdutosPorQuantidade(topN = 5) {
-		const mapa = new Map();
+        const mapa = new Map();
 
-		for (const pedido of this.pedidosPagos) {
-			for (const item of pedido.itens) {
-				const atual = mapa.get(item.sku) || 0;
-				mapa.set(item.sku, atual + item.quantidade);
-			}
-		}
+        for (const pedido of this.pedidosPagos) {
+            for (const item of pedido.itens) {
+                const atual = mapa.get(item.produtoId) || 0;
+                mapa.set(item.produtoId, atual + item.quantidade);
+            }
+        }
 
-		const lista = [];
+        const lista = [];
+        for (const [produtoId, quantidade] of mapa.entries()) {
+            lista.push({ produtoId, quantidade });
+        }
 
-		for (const [sku, quantidade] of mapa.entries()) {
-			lista.push({ sku, quantidade });
-		}
+        lista.sort((a, b) => b.quantidade - a.quantidade);
 
-		lista.sort((a, b) => b.quantidade - a.quantidade);
-
-		return lista.slice(0, topN);
-	}
-
+        return lista.slice(0, topN);
+    }
 
     arrecadadoPorCategoria() {
         const mapa = new Map();
 
         for (const pedido of this.pedidosPagos) {
             for (const item of pedido.itens) {
-                const subtotal = item.preco * item.quantidade;
-                const atual = mapa.get(item.categoria) || 0;
-                mapa.set(item.categoria, atual + subtotal);
+                const subtotal = item.precoUnitario * item.quantidade;
+                const categoria = item.categoria || "SEM_CATEGORIA";
+                const atual = mapa.get(categoria) || 0;
+                mapa.set(categoria, atual + subtotal);
             }
         }
 
         return Object.fromEntries(mapa);
     }
 }
+
 
 
 // ==========================================
@@ -991,7 +716,7 @@ function runDemo() {
 			cliente: clienteRegular,
 			carrinho,
 			cupomCodigo: "ETIC10",
-			numeroDeParcelas: 10
+			numeroDeParcelas: 1
 		});
 
 		pedido.pagar();
